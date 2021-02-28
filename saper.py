@@ -2,6 +2,9 @@ from tkinter import *
 from PIL import ImageTk
 from threading import *
 import random
+from tkinter import messagebox as mb
+import time
+import winsound
 
 
 root = Tk()
@@ -10,17 +13,20 @@ root.iconbitmap('icon.ico')
 root.geometry('172x218')
 root.title('')
 
-
 mainmenu = Menu(root)
 root.config(menu=mainmenu)
 root.resizable(width=False, height=False)
 
-
 time_records = ['123 сек', '234 сек', '345 сек']
 name_records = ['asd', 'zxc', 'dfg']
 
-
 cells = [None]*81
+game_is_started = 0
+waiting_for_smile = 0
+lost = 0
+win = 0
+number_of_opened_cells = 0
+now = 0
 
 
 bomb_image = ImageTk.PhotoImage(file="bomb.png")
@@ -34,29 +40,47 @@ six_image = ImageTk.PhotoImage(file="six.bmp")
 seven_image = ImageTk.PhotoImage(file="seven.bmp")
 eight_image = ImageTk.PhotoImage(file="eight.bmp")
 
-
+dead_smile = ImageTk.PhotoImage(file="dead_smile.png")
+glasses_smile = ImageTk.PhotoImage(file="glasses.png")
 
 def generate_bombs():
     a = [None]*10
     for i in range(10):
         a[i] = random.randint(0, 80)
     return a
-    
+
 
 def start_new_game():
-    game_is_started = True
-    print('start_new_game', game_is_started)
+    global game_is_started
+    game_is_started = 1
+    update_timer()
+
+
+def lose_game():
+    global lost
+    lost = 1
+    for i in range(81):
+        open_cell(cells[i])
+    global waiting_for_smile
+    waiting_for_smile = 1
+    #print('game is lost')
+    smile_btn.configure(image=dead_smile)
+    #answer = mb.showinfo(message="Убит!")
+    winsound.PlaySound('mario.wav', winsound.SND_FILENAME)
     
-    
+
 def open_cell(button):
     if button.active:
         button.active = False
+        global number_of_opened_cells
+        number_of_opened_cells += 1
         if button.mine:
             button.btn.configure(image=bomb_image)
             button.btn['state'] = 'disabled'
+            if not lost:
+                lose_game()
         else:
             if button.neighbours == 0:
-                print('Ноль мин')
                 button.btn['state'] = 'disabled'
                 button.btn.configure(image=opened_image)
                 i = button.number
@@ -110,7 +134,6 @@ def open_cell(button):
                     open_cell(cells[i+10])
                     open_cell(cells[i+8])      
             else:
-                #print('Есть мины:', button.neighbours)
                 button.btn['state'] = 'disabled'
                 if button.neighbours == 1:
                     button.btn.configure(image=one_image)
@@ -128,45 +151,58 @@ def open_cell(button):
                     button.btn.configure(image=seven_image)
                 if button.neighbours == 8:
                     button.btn.configure(image=seven_image)
+            if number_of_opened_cells == 71 and not lost:
+                #print('MUSIC')
+                global win
+                win = 1
+                global waiting_for_smile
+                waiting_for_smile = 1
+                smile_btn.configure(image=glasses_smile)
+                answer = mb.showinfo(message="Победа!")
+                root.after(3000, quit_game)
+                winsound.PlaySound('music.wav', winsound.SND_FILENAME)
+                
+            
 
 
- 
 def field_click(event, button):
-    #print('game state:', game_is_started)
-    if button.active:
-        open_cell(button)
+    if game_is_started:
+        if button.active:
+            open_cell(button)
     else:
         start_new_game()
-    
-    
+        if button.active:
+            open_cell(button)
+
+
 def change_to_beginner():
     pass
-    
-    
+
+
 def change_to_amateur():
     pass
-    
-    
+
+
 def change_to_professional():
     pass
-    
-    
+
+
 def open_special():
     pass
-    
-    
+
+
 def open_tags():
     pass
-    
-    
+
+
 def color_settings():
     pass
-    
-    
+
+
 def sound_settings():
     pass
-    
-    
+
+
 def list_of_champions():
     window_champions = Toplevel(root)
     window_champions.geometry('250x130')
@@ -228,13 +264,19 @@ def list_of_champions():
     ok_btn = Button(frame_bottom, text='OК', width=5, height=3, command=window_champions.destroy)
     ok_btn.pack()
     
+    
 def quit_game():
     root.destroy()
     
     
+def smile_clicked(event):
+    print('smile clicked, waiting_for_smile ', waiting_for_smile)
+    if waiting_for_smile:
+        quit_game()
+    
+    
 gamemenu = Menu(mainmenu, tearoff=0)
 helpmenu = Menu(mainmenu, tearoff=0)
-
 
 gamemenu.add_command(label="Новая игра                  F2", command=start_new_game)
 gamemenu.add_separator()
@@ -251,18 +293,15 @@ gamemenu.add_command(label="Чемпионы...", command=list_of_champions)
 gamemenu.add_separator()
 gamemenu.add_command(label="Выход", command=quit_game)
 
-
 helpmenu.add_command(label="Вызов справки                   F1")
 helpmenu.add_command(label="Предметный указатель...")
 helpmenu.add_command(label="Пользование справкой")
 helpmenu.add_separator()
 helpmenu.add_command(label="О программе")
 
-
 mainmenu.add_cascade(label="Игра",
                      menu=gamemenu)
 mainmenu.add_cascade(label='Справка', menu=helpmenu)
-
 
 frame_top = Frame(root)
 frame_top.place(relwidth=1, relheight=0.17)
@@ -271,38 +310,40 @@ mines_counter.pack(side=LEFT, padx=5, pady=5)
 l1 = Label(mines_counter, text='010', font=("Magneto", "18"))
 l1.pack()
 
-
 timer = LabelFrame(frame_top)
 timer.pack(side=RIGHT, padx=5, pady=5)
 l2 = Label(timer, text='000', font=("Magneto", "18"))
 l2.pack(side=RIGHT)
 
 
-def increment_timer():
-    current_time = int(l2['text']) + 1
-    if current_time < 10:
-        text = '00' + str(current_time)
-    elif current_time < 100:
-        text = '0' + str(current_time)
-    elif current_time < 1000:
-        text = str(current_time)
+def update_timer():
+    winsound.Beep(500, 100)
+    global now 
+    now += 1
+    if now < 10:
+        text = '00' + str(now)
+    elif now < 100:
+        text = '0' + str(now)
+    elif now < 1000:
+        text = str(now)
     else:
         text = '0'
+        now = 0
     l2.configure(text=text)
-    t = Timer(1.0, increment_timer)
-    t.start() 
-
+    if not lost and not win:
+        l2.after(1000, update_timer)
+    
 
 image = ImageTk.PhotoImage(file="smile.png")
 smile_btn = Button(frame_top, image=image)
 smile_btn.pack()
-
+smile_btn.bind('<Button-1>', smile_clicked)
 
 square_image =ImageTk.PhotoImage(file="square.png")
 
-
 fields = [None]*9
 h = 0.17
+
 
 class Cell():
     def __init__(self, number, btn, mine):
@@ -321,7 +362,6 @@ class Cell():
 j = 0
 
 list_of_bombs = generate_bombs()
-print('list of bombs', list_of_bombs)
 for i in range(9):
     fields[i] = Frame(root)
     fields[i].place(rely=h, relwidth=1, relheight=0.1)
@@ -341,14 +381,13 @@ flag_image =ImageTk.PhotoImage(file="flag.jpg")
 
 
 def set_flag(event, button):
-    if button.flag:
-        button.flag = False
-        button.btn.configure(image=square_image)
-    else:
-        button.flag = True
-        button.btn.configure(image=flag_image)
-    #text = 'Мина в ячейке ' + str(button.mine) + ', мин в соседних ячейках ', str(button.neighbours)
-    #print(text)
+    if button.active:
+        if button.flag:
+            button.flag = False
+            button.btn.configure(image=square_image)
+        else:
+            button.flag = True
+            button.btn.configure(image=flag_image)
 
 
 for i in range(81):
@@ -382,23 +421,7 @@ for i in range(81):
     cells[i].neighbours = count_of_bombs
     
     but.btn.bind('<Button-1>', lambda e, but=but: field_click(e, but))
-    but.btn.bind('<Button-3>', lambda e, but=but: set_flag(e, but))
-    
-    
-for i in range(9):
-    for j in range(9):
-        print(cells[i + j*9].mine, end='')
-    print()
-    
-    
-print()
-    
-for i in range(9):
-    for j in range(9):
-        print(cells[i + j*9].neighbours, end='')
-    print()
-        
-        
-        
-        
+    but.btn.bind('<Button-3>', lambda e, but=but: set_flag(e, but))   
+
+
 root.mainloop()
