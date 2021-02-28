@@ -1,15 +1,13 @@
 from tkinter import *
 from PIL import ImageTk
-from threading import *
 import random
 from tkinter import messagebox as mb
-import time
 import winsound
 
 
 root = Tk()
 root['bg'] = '#C0C0C0'
-root.iconbitmap('icon.ico')
+#root.iconbitmap('pic.ico')
 root.geometry('172x218')
 root.title('')
 
